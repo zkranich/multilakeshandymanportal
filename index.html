@@ -328,6 +328,19 @@ async function uploadPhotos(id,pfx){
 }
 async function ssUpdateRow(rowId,colName,val){const colId=COL_MAP[colName];if(!colId)return false;return ssPut('/sheets/'+SHEET_ID+'/rows',[{id:rowId,cells:[{columnId:colId,value:val}]}]);}
 async function ssComment(rowId,text){return ssPost('/sheets/'+SHEET_ID+'/rows/'+rowId+'/discussions',{comment:{text:text}});}
+async function ssNotifyPM(rowId,pmEmail,message){
+  // Send row to PM via Smartsheet's send row API — triggers email notification
+  try{
+    await ssPost('/sheets/'+SHEET_ID+'/rows/'+rowId+'/emails',[{
+      sendTo:[{email:pmEmail}],
+      subject:'Vendor Note — '+message.substring(0,60),
+      message:message,
+      includeAttachments:false,
+      includeCellLinks:false,
+      columnIds:Object.values(COL_MAP).slice(0,6)
+    }]);
+  }catch(e){console.log('PM notify failed:',e);}
+}});}
 // PM Smartsheet emails for @mentions
 const PM_SMARTSHEET_EMAILS={
   'Zak Kranich':'zkranich@farmerdevelopment.com',
@@ -345,10 +358,12 @@ async function doNote(id,pfx){
     // Build @mention for the job's PM so they get notified in Smartsheet
     const j=JOBS.find(x=>x.id===id);
     const pmEmail=j&&PM_SMARTSHEET_EMAILS[j.pm]?PM_SMARTSHEET_EMAILS[j.pm]:null;
-    const mention=pmEmail?`@${pmEmail} `:'`';
+    const mention=pmEmail?`@${pmEmail} `:'';
     const comment=`${mention}[${VENDOR_NAME}] ${txt}`;
     const res=await ssComment(id,comment);
     if(res){
+      // Also send email notification to PM
+      if(pmEmail) await ssNotifyPM(id, pmEmail, `[${VENDOR_NAME}] left a note on job #${j.proj} — ${j.name}: "${txt}"`);
       ok.classList.add('on');
       document.getElementById('note-inp-'+pfx+'-'+id).value='';
       const history=document.getElementById('notes-history-'+pfx+'-'+id);
