@@ -76,6 +76,8 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 .msg-ok{background:#E8F5E9;color:#2E7D32;font-size:12px;padding:7px 11px;border-radius:var(--r);margin-top:6px;display:none}.msg-ok.on{display:block}
 .msg-err{background:#FFEBEE;color:#C62828;font-size:12px;padding:7px 11px;border-radius:var(--r);margin-top:6px;display:none}.msg-err.on{display:block}
 .locked-msg{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--ink3)}.locked-msg svg{flex-shrink:0;opacity:.5}
+
+/* NOTES */
 .note-bubble{background:#EDE9FE;border-radius:var(--r);padding:10px 14px;position:relative}
 .note-bubble-text{font-size:13px;line-height:1.5;color:var(--ink)}
 .note-bubble-meta{font-size:10px;color:#5B21B6;margin-top:5px;font-weight:500}
@@ -207,7 +209,7 @@ async function ssPut(p,b){const r=await fetch(SS_BASE+p,{method:'PUT',headers:SS
 const PM_CONTACTS={'Zak Kranich':{phone:'5177196048'}};
 function pmHTML(name){const pm=PM_CONTACTS[name];if(!pm)return `<div class="pm-name">${esc(name)}</div>`;return `<div class="pm-name">${esc(name)}</div><a class="pm-btn call" href="tel:${pm.phone}"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.76a16 16 0 0 0 6.29 6.29l1.14-1.14a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call</a><a class="pm-btn sms" href="sms:${pm.phone}"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Text</a>`;}
 const REGIONS={northdetroit:{label:'North Detroit',color:'#1a3a5c',bound:'North of I-696',cities:['oak park','sterling heights','troy','fraser','lake orion','rochester hills','walled lake']},westdetroit:{label:'West Detroit',color:'#2d5a27',bound:'West Metro Detroit',cities:['canton','westland','wixom','allen park','saline','ann arbor','dearborn']},southdetroit:{label:'South Detroit',color:'#7a2020',bound:'South Metro Detroit',cities:['trenton']},flint:{label:'Flint',color:'#5a3a1a',bound:'Flint metro area',cities:['flint']},other:{label:'Other',color:'#3a2060',bound:'Other areas',cities:[]}};
-const CITY_COORDS={'canton':[42.31,-83.48],'westland':[42.32,-83.40],'dearborn':[42.32,-83.18],'ann arbor':[42.28,-83.74],'ypsilanti':[42.24,-83.61],'southfield':[42.47,-83.22],'oak park':[42.46,-83.18],'walled lake':[42.54,-83.48],'novi':[42.48,-83.49],'wixom':[42.52,-83.54],'trenton':[42.14,-83.18],'flint':[43.01,-83.69],'lansing':[42.73,-84.56],'sterling heights':[42.58,-83.03],'troy':[42.56,-83.14],'fraser':[42.54,-82.95],'lake orion':[42.78,-83.24],'rochester hills':[42.66,-83.15],'allen park':[42.26,-83.21],'saline':[42.17,-83.78]};
+const CITY_COORDS={'canton':[42.31,-83.48],'westland':[42.32,-83.40],'dearborn':[42.32,-83.18],'ann arbor':[42.28,-83.74],'ypsilanti':[42.24,-83.61],'southfield':[42.47,-83.22],'oak park':[42.46,-83.18],'walled lake':[42.54,-83.48],'novi':[42.48,-83.49],'wixom':[42.52,-83.54],'trenton':[42.14,-83.18],'flint':[43.01,-83.69],'sterling heights':[42.58,-83.03],'troy':[42.56,-83.14],'fraser':[42.54,-82.95],'lake orion':[42.78,-83.24],'rochester hills':[42.66,-83.15],'allen park':[42.26,-83.21],'saline':[42.17,-83.78]};
 function getRegion(a){a=a.toLowerCase();for(const[k,r]of Object.entries(REGIONS))if(r.cities.some(c=>a.includes(c)))return k;return 'other';}
 function getCoords(a){a=a.toLowerCase();for(const[c,co]of Object.entries(CITY_COORDS))if(a.includes(c))return{lat:co[0],lng:co[1]};return{lat:42.35,lng:-83.40};}
 let JOBS=[],VISIBLE_JOBS=[],COL_MAP={},jState={},loadedAtt={},calDate=new Date(),leafMap=null,mapMarkers={};
@@ -232,9 +234,28 @@ async function loadJobs(){
   document.getElementById('loading-overlay').style.display='none';
 }
 function stepCls(s){if(!s)return 'b-hold';if(s.includes('04.'))return 'b-buyout';if(s.includes('03.'))return 'b-approval';if(s.includes('05.'))return 'b-dowork';if(s.includes('06.'))return 'b-pending';if(s.includes('02.'))return 'b-approved';return 'b-hold';}
-function stepLbl(s){if(!s)return s;if(s.includes('01.'))return 'Need Estimate';if(s.includes('02.'))return 'Need Estimate';if(s.includes('03.'))return 'Waiting for Approval';if(s.includes('04.'))return 'Approved';if(s.includes('05.'))return 'Scheduled';if(s.includes('06.'))return 'Pending';if(s.includes('07.'))return 'Invoice Submitted';if(s.includes('08.'))return 'Complete';if(s.includes('00.'))return 'On Hold';const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;}
-function stepLblBadge(step,vStep){if(vStep&&vStep.toLowerCase().includes('material'))return 'Material on Order';return stepLbl(step);}
-function vStepLbl(s){if(!s)return s;if(s.includes('00.'))return 'Waiting for Approval';if(s.includes('01.'))return 'Need Estimate';if(s.includes('02.'))return 'Estimate Submitted';if(s.includes('03.')&&s.toLowerCase().includes('waiting'))return 'Waiting for Approval';if(s.includes('04.'))return 'Approved';if(s.includes('05.'))return 'Material on Order';if(s.includes('06.'))return 'Awaiting Schedule';if(s.includes('07.'))return 'Scheduled';if(s.includes('08.'))return 'Need Invoice';if(s.includes('09.'))return 'Awaiting Confirmation';const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;}
+function stepLbl(s){
+  if(!s)return s;
+  if(s.includes('01.'))return 'Need Estimate';
+  if(s.includes('02.'))return 'Need Estimate';
+  if(s.includes('03.'))return 'Waiting for Approval';
+  if(s.includes('04.')){
+    // If vendor has set Material on Order override it
+    return 'Approved';
+  }
+  if(s.includes('05.'))return 'Scheduled';
+  if(s.includes('06.'))return 'Pending';
+  if(s.includes('07.'))return 'Invoice Submitted';
+  if(s.includes('08.'))return 'Complete';
+  if(s.includes('00.'))return 'On Hold';
+  const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;
+}
+function stepLblBadge(step, vStep){
+  // If vendor has set Material on Order, show that regardless of PM step
+  if(vStep&&vStep.toLowerCase().includes('material'))return 'Material on Order';
+  return stepLbl(step);
+}
+function vStepLbl(s){if(!s)return s;if(s.includes('00.'))return 'Waiting for Approval';if(s.includes('01.'))return 'Need Estimate';if(s.includes('02.'))return 'Estimate Submitted';if(s.includes('03.')&&s.toLowerCase().includes('waiting'))return 'Waiting for Approval';if(s.includes('03.'))return 'Waiting for Approval';if(s.includes('04.'))return 'Approved';if(s.includes('05.'))return 'Material on Order';if(s.includes('06.'))return 'Awaiting Schedule';if(s.includes('07.'))return 'Scheduled';if(s.includes('08.'))return 'Need Invoice';if(s.includes('09.'))return 'Awaiting Confirmation';const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;}
 function fmtD(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtM(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -340,7 +361,7 @@ async function ssNotifyPM(rowId,pmEmail,message){
       columnIds:Object.values(COL_MAP).slice(0,6)
     }]);
   }catch(e){console.log('PM notify failed:',e);}
-}});}
+}
 // PM Smartsheet emails for @mentions
 const PM_SMARTSHEET_EMAILS={
   'Zak Kranich':'zkranich@farmerdevelopment.com',
