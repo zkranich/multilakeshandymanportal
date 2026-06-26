@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{--ink:#18181A;--ink2:#4a4a4f;--ink3:#8a8a92;--paper:#F7F6F2;--surface:#FFFFFF;--line:rgba(24,24,26,.1);--line2:rgba(24,24,26,.06);--r:10px;--rlg:14px;--font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;--c-buyout-bg:#FFF3E0;--c-buyout:#E65100;--c-approval-bg:#E3F2FD;--c-approval:#1565C0;--c-dowork-bg:#E8F5E9;--c-dowork:#2E7D32;--c-pending-bg:#FCE4EC;--c-pending:#880E4F;--c-approved-bg:#E0F2F1;--c-approved:#00695C;--c-hold-bg:#F5F5F5;--c-hold:#616161}
 *{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;font-family:var(--font);background:var(--paper);color:var(--ink)}
@@ -39,6 +40,8 @@
 .stat-n{font-size:26px;font-weight:600;letter-spacing:-1px;color:var(--ink)}.stat-l{font-size:11px;color:var(--ink3);margin-top:2px}
 .job-list{display:flex;flex-direction:column;gap:8px}.empty-msg{text-align:center;padding:60px 20px;color:var(--ink3);font-size:14px}
 .jcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--rlg);overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.jcard.has-update{border-color:#EF4444;box-shadow:0 0 0 1px #EF4444}
+.update-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#EF4444;background:#FEF2F2;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em}
 .jcard:hover{border-color:rgba(24,24,26,.2);box-shadow:0 2px 14px rgba(0,0,0,.07)}.jcard.open{border-color:rgba(24,24,26,.22);box-shadow:0 4px 22px rgba(0,0,0,.09)}
 .jhead{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:12px}
 .jnum{font-family:var(--mono);font-size:11px;color:var(--ink3);background:var(--paper);padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
@@ -75,6 +78,11 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 .msg-ok{background:#E8F5E9;color:#2E7D32;font-size:12px;padding:7px 11px;border-radius:var(--r);margin-top:6px;display:none}.msg-ok.on{display:block}
 .msg-err{background:#FFEBEE;color:#C62828;font-size:12px;padding:7px 11px;border-radius:var(--r);margin-top:6px;display:none}.msg-err.on{display:block}
 .locked-msg{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--ink3)}.locked-msg svg{flex-shrink:0;opacity:.5}
+
+/* NOTES */
+.note-bubble{background:#EDE9FE;border-radius:var(--r);padding:10px 14px;position:relative}
+.note-bubble-text{font-size:13px;line-height:1.5;color:var(--ink)}
+.note-bubble-meta{font-size:10px;color:#5B21B6;margin-top:5px;font-weight:500}
 .photo-actions{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .photo-btn{display:flex;align-items:center;gap:8px;padding:12px 20px;border:2px dashed var(--line);border-radius:var(--r);cursor:pointer;color:var(--ink3);font-size:13px;font-weight:500;background:var(--surface);transition:border-color .15s,color .15s;flex:1;min-width:140px;justify-content:center}.photo-btn:hover{border-color:var(--ink);color:var(--ink)}.photo-btn input{display:none}
 .photo-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:10px}
@@ -164,6 +172,37 @@ const VENDOR_NAME='Multi Lakes Handyman';
 const VENDOR_NAME_VARIANTS=['Multi Lakes Handyman Services','Multi Lakes Handyman Service','Multi Lakes Handyman','Multi lakes Handyman','Multilakes Handyman Services'];
 const SHEET_ID='7509734909828';
 const SS_TOKEN='Vcpjt0FG4aDCIg8P23tGFPTivL6aANJQmCwrU';
+
+// PM email directory
+const PM_EMAILS={
+  'Zak Kranich':'zkranich@farmerdevelopment.com',
+  'Jacob Dafoe':'jdafoe@farmerdevelopment.com',
+  'Connor Thomas':'cthomas@farmerdevelopment.com'
+};
+
+// EmailJS config — fill in after EmailJS setup
+const EMAILJS_SERVICE_ID='';
+const EMAILJS_TEMPLATE_ID='';
+const EMAILJS_PUBLIC_KEY='';
+
+async function sendPMEmail(pmName,jobName,jobAddr,projNo,bidAmt,notes){
+  if(!EMAILJS_SERVICE_ID||!EMAILJS_PUBLIC_KEY)return; // skip if not configured yet
+  const toEmail=PM_EMAILS[pmName];
+  if(!toEmail)return;
+  try{
+    await emailjs.send(EMAILJS_SERVICE_ID,EMAILJS_TEMPLATE_ID,{
+      to_email:toEmail,
+      to_name:pmName,
+      vendor_name:VENDOR_NAME,
+      job_name:jobName,
+      job_address:jobAddr,
+      proj_no:projNo,
+      bid_amount:'$'+bidAmt,
+      bid_notes:notes||'None',
+      portal_link:window.location.href
+    },EMAILJS_PUBLIC_KEY);
+  }catch(e){console.log('Email notification failed:',e);}
+}
 const SS_BASE='https://ss-proxy.zkranich.workers.dev';
 const SS_HEADERS={'Authorization':'Bearer '+SS_TOKEN,'Content-Type':'application/json'};
 async function ssGet(p){const r=await fetch(SS_BASE+p,{headers:SS_HEADERS});return r.json();}
@@ -172,7 +211,7 @@ async function ssPut(p,b){const r=await fetch(SS_BASE+p,{method:'PUT',headers:SS
 const PM_CONTACTS={'Zak Kranich':{phone:'5177196048'}};
 function pmHTML(name){const pm=PM_CONTACTS[name];if(!pm)return `<div class="pm-name">${esc(name)}</div>`;return `<div class="pm-name">${esc(name)}</div><a class="pm-btn call" href="tel:${pm.phone}"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.76a16 16 0 0 0 6.29 6.29l1.14-1.14a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Call</a><a class="pm-btn sms" href="sms:${pm.phone}"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Text</a>`;}
 const REGIONS={northdetroit:{label:'North Detroit',color:'#1a3a5c',bound:'North of I-696',cities:['oak park','sterling heights','troy','fraser','lake orion','rochester hills','walled lake']},westdetroit:{label:'West Detroit',color:'#2d5a27',bound:'West Metro Detroit',cities:['canton','westland','wixom','allen park','saline','ann arbor','dearborn']},southdetroit:{label:'South Detroit',color:'#7a2020',bound:'South Metro Detroit',cities:['trenton']},flint:{label:'Flint',color:'#5a3a1a',bound:'Flint metro area',cities:['flint']},other:{label:'Other',color:'#3a2060',bound:'Other areas',cities:[]}};
-const CITY_COORDS={'canton':[42.31,-83.48],'westland':[42.32,-83.40],'dearborn':[42.32,-83.18],'ann arbor':[42.28,-83.74],'ypsilanti':[42.24,-83.61],'southfield':[42.47,-83.22],'oak park':[42.46,-83.18],'walled lake':[42.54,-83.48],'novi':[42.48,-83.49],'wixom':[42.52,-83.54],'trenton':[42.14,-83.18],'flint':[43.01,-83.69],'lansing':[42.73,-84.56],'sterling heights':[42.58,-83.03],'troy':[42.56,-83.14],'fraser':[42.54,-82.95],'lake orion':[42.78,-83.24],'rochester hills':[42.66,-83.15],'allen park':[42.26,-83.21],'saline':[42.17,-83.78]};
+const CITY_COORDS={'canton':[42.31,-83.48],'westland':[42.32,-83.40],'dearborn':[42.32,-83.18],'ann arbor':[42.28,-83.74],'ypsilanti':[42.24,-83.61],'southfield':[42.47,-83.22],'oak park':[42.46,-83.18],'walled lake':[42.54,-83.48],'novi':[42.48,-83.49],'wixom':[42.52,-83.54],'trenton':[42.14,-83.18],'flint':[43.01,-83.69],'sterling heights':[42.58,-83.03],'troy':[42.56,-83.14],'fraser':[42.54,-82.95],'lake orion':[42.78,-83.24],'rochester hills':[42.66,-83.15],'allen park':[42.26,-83.21],'saline':[42.17,-83.78]};
 function getRegion(a){a=a.toLowerCase();for(const[k,r]of Object.entries(REGIONS))if(r.cities.some(c=>a.includes(c)))return k;return 'other';}
 function getCoords(a){a=a.toLowerCase();for(const[c,co]of Object.entries(CITY_COORDS))if(a.includes(c))return{lat:co[0],lng:co[1]};return{lat:42.35,lng:-83.40};}
 let JOBS=[],VISIBLE_JOBS=[],COL_MAP={},jState={},loadedAtt={},calDate=new Date(),leafMap=null,mapMarkers={};
@@ -197,7 +236,28 @@ async function loadJobs(){
   document.getElementById('loading-overlay').style.display='none';
 }
 function stepCls(s){if(!s)return 'b-hold';if(s.includes('04.'))return 'b-buyout';if(s.includes('03.'))return 'b-approval';if(s.includes('05.'))return 'b-dowork';if(s.includes('06.'))return 'b-pending';if(s.includes('02.'))return 'b-approved';return 'b-hold';}
-function stepLbl(s){if(!s)return s;if(s.includes('01.'))return 'Need Estimate';if(s.includes('04.'))return 'Approved';if(s.includes('03.')&&s.toLowerCase().includes('material'))return 'Materials Ordered';if(s.includes('03.'))return 'Waiting for Approval';if(s.includes('05.'))return 'Scheduled';if(s.includes('06.'))return 'Pending NTE/CO';if(s.includes('07.'))return 'Bill';if(s.includes('08.'))return 'Job Complete';if(s.includes('00.'))return 'On Hold';const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;}
+function stepLbl(s){
+  if(!s)return s;
+  if(s.includes('01.'))return 'Need Estimate';
+  if(s.includes('02.'))return 'Need Estimate';
+  if(s.includes('03.'))return 'Waiting for Approval';
+  if(s.includes('04.')){
+    // If vendor has set Material on Order override it
+    return 'Approved';
+  }
+  if(s.includes('05.'))return 'Scheduled';
+  if(s.includes('06.'))return 'Pending';
+  if(s.includes('07.'))return 'Invoice Submitted';
+  if(s.includes('08.'))return 'Complete';
+  if(s.includes('00.'))return 'On Hold';
+  const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;
+}
+function stepLblBadge(step, vStep){
+  // If vendor has set Material on Order, show that regardless of PM step
+  if(vStep&&vStep.toLowerCase().includes('material'))return 'Material on Order';
+  return stepLbl(step);
+}
+function vStepLbl(s){if(!s)return s;if(s.includes('00.'))return 'Waiting for Approval';if(s.includes('01.'))return 'Need Estimate';if(s.includes('02.'))return 'Estimate Submitted';if(s.includes('03.')&&s.toLowerCase().includes('waiting'))return 'Waiting for Approval';if(s.includes('03.'))return 'Waiting for Approval';if(s.includes('04.'))return 'Approved';if(s.includes('05.'))return 'Material on Order';if(s.includes('06.'))return 'Awaiting Schedule';if(s.includes('07.'))return 'Scheduled';if(s.includes('08.'))return 'Need Invoice';if(s.includes('09.'))return 'Awaiting Confirmation';const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;}
 function fmtD(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtM(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -212,36 +272,160 @@ function renderJobList(){
   const list=document.getElementById('job-list-all'),empty=document.getElementById('jobs-empty');
   if(!f.length){list.innerHTML='';empty.style.display='block';return;}empty.style.display='none';list.innerHTML=f.map(j=>buildCard(j,'all')).join('');
 }
+// Customer lookup by store code prefix
+const CUSTOMERS={
+  'DSS':'Devon Self Storage',
+  'PS':'Public Storage',
+  'CS':'CubeSmart',
+  'CH':'Clear Home',
+  'AXS':'AXS Self Storage',
+  'SK':'Storage King',
+  'MP':'Metro Storage',
+  'CH':'Clear Home'
+};
+function getCustomer(store){
+  if(!store)return null;
+  const prefix=store.split(' ')[0].toUpperCase();
+  return CUSTOMERS[prefix]||null;
+}
+
+// UPDATE TRACKING (localStorage) — flags status changes and new notes since last visit
+const SEEN_KEY='seenJobState_'+VENDOR_NAME.replace(/\s+/g,'_');
+let DISCUSSION_COUNTS={}; // rowId -> comment count, populated at load
+function getSeenState(){
+  try{return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}');}catch{return {};}
+}
+function setSeenState(state){
+  try{localStorage.setItem(SEEN_KEY,JSON.stringify(state));}catch{}
+}
+function getJobUpdateFlags(j){
+  const seen=getSeenState();
+  const prev=seen[j.id];
+  const curCount=DISCUSSION_COUNTS[j.id]||0;
+  if(!prev)return {statusChanged:false,hasNote:false};
+  const statusChanged=prev.step!==j.step||prev.vStep!==j.vStep;
+  const hasNote=curCount>(prev.commentCount||0);
+  return {statusChanged,hasNote};
+}
+function markJobSeen(j){
+  const seen=getSeenState();
+  seen[j.id]={step:j.step,vStep:j.vStep,commentCount:DISCUSSION_COUNTS[j.id]||0};
+  setSeenState(seen);
+}
+function primeSeenState(){
+  const seen=getSeenState();
+  let changed=false;
+  JOBS.forEach(j=>{
+    if(!seen[j.id]){
+      seen[j.id]={step:j.step,vStep:j.vStep,commentCount:DISCUSSION_COUNTS[j.id]||0};
+      changed=true;
+    }
+  });
+  if(changed)setSeenState(seen);
+}
+async function loadAllDiscussionCounts(){
+  try{
+    let allDiscussions=[],page=1;
+    while(true){
+      const d=await ssGet('/sheets/'+SHEET_ID+'/discussions?include=comments&page='+page+'&pageSize=100&numericDates=true');
+      const data=d.data||[];
+      allDiscussions=allDiscussions.concat(data);
+      if(!d.totalPages||page>=d.totalPages)break;
+      page++;
+    }
+    const counts={};
+    allDiscussions.forEach(disc=>{
+      const rowId=disc.parentId; // for ROW-level discussions, parentId = the row id
+      if(!rowId)return;
+      const n=(disc.comments||[]).length;
+      counts[rowId]=(counts[rowId]||0)+n;
+    });
+    DISCUSSION_COUNTS=counts;
+  }catch(e){console.log('Could not load discussion counts:',e);}
+}
+
 function buildCard(j,pfx){
   const canSched=j.step.includes('04.')||j.step.includes('05.');
-  return `<div class="jcard" id="jc-${pfx}-${j.id}"><div class="jhead" onclick="toggleCard('${pfx}',${j.id})"><span class="jnum">#${j.proj}</span><div class="jtitle"><div class="jname">${esc(j.name)}</div><div class="jaddr">${esc(j.address)}</div></div><div class="jbadges"><span class="badge ${stepCls(j.step)}">${stepLbl(j.step)}</span></div><svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+  const flags=getJobUpdateFlags(j);
+  const hasUpdate=flags.statusChanged||flags.hasNote;
+  return `<div class="jcard${hasUpdate?' has-update':''}" id="jc-${pfx}-${j.id}"><div class="jhead" onclick="toggleCard('${pfx}',${j.id})"><span class="jnum">${esc(j.store)}</span><div class="jtitle"><div class="jname">${flags.hasNote?'<span class="update-tag">New Note</span>':''}${flags.statusChanged?'<span class="update-tag">Status Changed</span>':''}${esc(j.name)}</div><div class="jaddr">${esc(j.address)}</div></div><div class="jbadges"><span class="badge ${stepCls(j.step)}">${stepLblBadge(j.step,j.vStep)}</span></div><svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
 <div class="jbody">
 <div class="btabs"><button class="btab active" onclick="btab(event,'${pfx}',${j.id},'info')">Job Info</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'photos')">Photos</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'est')">Estimate</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'sched')">Schedule</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'bill')">Billing</button></div>
 <div class="bpanel active" id="binfo-${pfx}-${j.id}"><div class="igrid">
   <div class="iitem full"><label>Scope of Work</label><p>${esc(j.scope)||'—'}</p></div>
+  ${getCustomer(j.store)?`<div class="iitem"><label>Customer</label><p style="font-weight:500">${getCustomer(j.store)}</p><p style="font-size:12px;color:var(--ink3)">${esc(j.store)}</p></div>`:''}
   <div class="iitem"><label>Site Address</label><p>${esc(j.address)}</p><a class="maplnk" href="https://maps.google.com/?q=${encodeURIComponent(j.address)}" target="_blank"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open in Maps</a></div>
   ${j.gate?`<div class="iitem"><label>Gate / Access Code</label><div class="gate-chip"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>${esc(j.gate)}</div></div>`:''}
-  <div class="iitem"><label>Status</label><span class="badge ${stepCls(j.step)}" style="font-size:11px">${stepLbl(j.step)}</span></div>
+  <div class="iitem"><label>Status</label><span class="badge ${stepCls(j.step)}" style="font-size:11px">${stepLblBadge(j.step,j.vStep)}</span></div>
   ${j.vStep?`<div class="iitem"><label>Your Next Step</label><span style="font-size:11px;padding:3px 9px;border-radius:20px;background:#EDE9FE;color:#5B21B6;font-weight:500">${esc(j.vStep)}</span></div>`:''}
   ${j.nte>0?`<div class="iitem"><label>Current NTE</label><div class="nte-chip">${fmtM(j.nte)}</div></div>`:''}
+  ${j.quoted&&parseFloat(j.quoted)>0?`<div class="iitem"><label>Your Submitted Bid</label><div class="nte-chip" style="background:#E3F2FD;color:#1565C0">${fmtM(j.quoted)}</div></div>`:''}
   ${j.pm?`<div class="iitem full"><label>Project Manager</label><div class="pm-contact">${pmHTML(j.pm)}</div></div>`:''}
 </div>
 <div class="att-section"><label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Attachments</label><div id="att-${pfx}-${j.id}" class="att-msg">Loading…</div></div>
+<div class="att-section">
+  <label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Notes</label>
+  <div id="notes-history-${pfx}-${j.id}" style="margin-top:8px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px"><div class="att-msg" style="padding:8px 0">Loading conversation…</div></div>
+  <textarea class="ni" id="note-inp-${pfx}-${j.id}" placeholder="Add a note visible to your project manager…" style="min-height:54px;margin-top:4px"></textarea>
+  <div style="margin-top:8px"><button class="btn pri" onclick="doNote(${j.id},'${pfx}')">Post Note</button></div>
+  <div class="msg-ok" id="note-ok-${pfx}-${j.id}">✓ Note added</div>
+  <div class="msg-err" id="note-er-${pfx}-${j.id}">Error — please try again</div>
+</div>
 </div>
 <div class="bpanel" id="bphotos-${pfx}-${j.id}"><div class="asec"><h4>Take or Upload Photos</h4><div class="photo-actions"><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take Photo<input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'${pfx}',${j.id})"></label><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Image<input type="file" accept="image/*" multiple onchange="previewPhoto(this,'${pfx}',${j.id})"></label></div><div id="photo-preview-${pfx}-${j.id}" class="photo-preview"></div><div style="margin-top:10px"><button class="btn pri" onclick="uploadPhotos(${j.id},'${pfx}')">Upload to Job</button></div><div class="msg-ok" id="photo-ok-${pfx}-${j.id}">✓ Photos uploaded</div><div class="msg-err" id="photo-er-${pfx}-${j.id}">Upload failed</div></div></div>
-<div class="bpanel" id="best-${pfx}-${j.id}"><div class="asec"><h4>Submit Bid / Estimate</h4><div class="irow"><input class="ii" type="number" id="bid-a-${pfx}-${j.id}" placeholder="Bid amount ($)" min="0" step="0.01"></div><textarea class="ni" id="bid-n-${pfx}-${j.id}" placeholder="Bid notes or breakdown (optional)…" style="min-height:54px"></textarea><div class="upl-area" onclick="document.getElementById('bid-f-${pfx}-${j.id}').click()" style="margin-top:8px"><input type="file" id="bid-f-${pfx}-${j.id}" accept="image/*,.pdf" onchange="document.getElementById('bid-fn-${pfx}-${j.id}').textContent=this.files[0].name"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><div id="bid-fn-${pfx}-${j.id}">Attach estimate document</div></div><div style="margin-top:8px"><button class="btn pri" onclick="doBid(${j.id},'${pfx}')">Submit Estimate</button></div><div class="msg-ok" id="bid-ok-${pfx}-${j.id}">✓ Estimate submitted</div><div class="msg-err" id="bid-er-${pfx}-${j.id}">Error — please try again</div></div></div>
+<div class="bpanel" id="best-${pfx}-${j.id}"><div class="asec"><h4>Submit Bid / Estimate</h4><div class="irow"><input class="ii" type="number" id="bid-a-${pfx}-${j.id}" placeholder="Bid amount ($)" min="0" step="0.01" ${j.quoted?`value="${j.quoted}" style="background:var(--paper);color:var(--c-dowork);font-weight:600"`:''}></div><textarea class="ni" id="bid-n-${pfx}-${j.id}" placeholder="Bid notes or breakdown (optional)…" style="min-height:54px"></textarea><div class="upl-area" onclick="document.getElementById('bid-f-${pfx}-${j.id}').click()" style="margin-top:8px"><input type="file" id="bid-f-${pfx}-${j.id}" accept="image/*,.pdf" onchange="document.getElementById('bid-fn-${pfx}-${j.id}').textContent=this.files[0].name"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><div id="bid-fn-${pfx}-${j.id}">Attach estimate document</div></div><div style="margin-top:8px"><button class="btn pri" onclick="doBid(${j.id},'${pfx}')">Submit Estimate</button></div><div class="msg-ok" id="bid-ok-${pfx}-${j.id}">✓ Estimate submitted</div><div class="msg-err" id="bid-er-${pfx}-${j.id}">Error — please try again</div></div></div>
 <div class="bpanel" id="bsched-${pfx}-${j.id}">
-  <div class="asec"><h4>Your Next Step</h4><select class="ii" id="vns-${pfx}-${j.id}" style="margin-bottom:8px"><option value="">— Select status —</option><option value="00. Waiting for Approval"${j.vStep==='00. Waiting for Approval'?' selected':''}>00. Waiting for Approval</option><option value="01. Need Estimate"${j.vStep==='01. Need Estimate'?' selected':''}>01. Need Estimate</option><option value="02. Approved"${j.vStep==='02. Approved'?' selected':''}>02. Approved</option><option value="03. Materials Ordered"${j.vStep==='03. Materials Ordered'?' selected':''}>03. Materials Ordered</option><option value="04. Scheduled"${j.vStep==='04. Scheduled'?' selected':''}>04. Scheduled</option><option value="05. Need Invoice"${j.vStep==='05. Need Invoice'?' selected':''}>05. Need Invoice</option><option value="06. Awaiting Confirmation"${j.vStep==='06. Awaiting Confirmation'?' selected':''}>06. Awaiting Confirmation</option></select><button class="btn pri" onclick="doVendorStep(${j.id},'${pfx}')">Update My Status</button><div class="msg-ok" id="vns-ok-${pfx}-${j.id}">✓ Status updated</div><div class="msg-err" id="vns-er-${pfx}-${j.id}">Error</div></div>
   <div class="asec"><h4>Schedule Date</h4>${j.start?`<div class="sched-display"><div><div class="sched-date">${fmtD(j.start)}</div><div class="sched-label">Currently scheduled</div></div></div>`:`<div class="sched-none">No date scheduled yet.</div>`}${canSched?`<input class="ii" type="date" id="scd-${pfx}-${j.id}" value="${j.start||''}" style="margin-bottom:8px"><button class="btn pri" onclick="doSched(${j.id},'${pfx}')">Save Schedule Date</button><div class="msg-ok" id="scd-ok-${pfx}-${j.id}">✓ Schedule date updated</div><div class="msg-err" id="scd-er-${pfx}-${j.id}">Error</div>`:`<div class="locked-msg"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Scheduling available once this job is approved.</div>`}</div>
 </div>
 <div class="bpanel" id="bbill-${pfx}-${j.id}">
-  <div class="asec"><h4>Submit Invoice</h4><div class="irow"><input class="ii" type="number" id="inv-a-${pfx}-${j.id}" placeholder="Invoice amount ($)" min="0" step="0.01"><input class="ii" type="text" id="inv-n-${pfx}-${j.id}" placeholder="Invoice # (optional)" style="max-width:170px"></div><div class="upl-area" onclick="document.getElementById('inv-f-${pfx}-${j.id}').click()"><input type="file" id="inv-f-${pfx}-${j.id}" accept="image/*,.pdf" onchange="document.getElementById('inv-fn-${pfx}-${j.id}').textContent=this.files[0].name"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><div id="inv-fn-${pfx}-${j.id}">Attach invoice</div></div></div>
+  <div class="asec"><h4>Submit Invoice</h4><div class="irow"><input class="ii" type="number" id="inv-a-${pfx}-${j.id}" placeholder="Invoice amount ($)" min="0" step="0.01" ${j.invoice&&parseFloat(j.invoice)>0?`value="${parseFloat(j.invoice).toFixed(2)}" style="background:var(--paper);color:var(--c-dowork);font-weight:600"`:''}><input class="ii" type="text" id="inv-n-${pfx}-${j.id}" placeholder="Invoice # (optional)" style="max-width:170px"></div><div class="upl-area" onclick="document.getElementById('inv-f-${pfx}-${j.id}').click()"><input type="file" id="inv-f-${pfx}-${j.id}" accept="image/*,.pdf" onchange="document.getElementById('inv-fn-${pfx}-${j.id}').textContent=this.files[0].name"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><div id="inv-fn-${pfx}-${j.id}">Attach invoice</div></div></div>
   <div class="asec"><h4>Completion Photos</h4><div class="photo-actions"><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take Photo<input type="file" accept="image/*" capture="environment" onchange="previewCompPhoto(this,'${pfx}',${j.id})"></label><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Images<input type="file" accept="image/*" multiple onchange="previewCompPhoto(this,'${pfx}',${j.id})"></label></div><div id="comp-preview-${pfx}-${j.id}" class="photo-preview"></div></div>
   <button class="btn pri" onclick="doInvoice(${j.id},'${pfx}')">Submit Invoice &amp; Photos</button><div class="msg-ok" id="inv-ok-${pfx}-${j.id}">✓ Invoice submitted</div><div class="msg-err" id="inv-er-${pfx}-${j.id}">Error — please try again</div>
 </div>
 </div></div>`;
 }
-function toggleCard(pfx,id){const el=document.getElementById('jc-'+pfx+'-'+id);el.classList.toggle('open');if(el.classList.contains('open'))loadAtt(id,pfx);}
+function toggleCard(pfx,id){
+  const el=document.getElementById('jc-'+pfx+'-'+id);
+  el.classList.toggle('open');
+  if(el.classList.contains('open')){
+    loadAtt(id,pfx);loadDiscussion(id,pfx);
+    // Clear update highlight once opened
+    const j=JOBS.find(x=>x.id===id);
+    if(j){
+      markJobSeen(j);
+      el.classList.remove('has-update');
+      const tags=el.querySelectorAll('.update-tag');
+      tags.forEach(t=>t.remove());
+    }
+  }
+}
+
+
+let loadedDisc={};
+async function loadDiscussion(id,pfx){
+  const key=pfx+'-'+id;
+  if(loadedDisc[key])return;loadedDisc[key]=true;
+  const history=document.getElementById('notes-history-'+pfx+'-'+id);
+  if(!history)return;
+  try{
+    const d=await ssGet('/sheets/'+SHEET_ID+'/rows/'+id+'/discussions?include=comments');
+    const discussions=d.data||[];
+    if(!discussions.length){history.innerHTML='';return;}
+    // Gather all comments across all discussions on this row, sorted oldest first
+    let allComments=[];
+    discussions.forEach(disc=>{
+      (disc.comments||[]).forEach(c=>allComments.push(c));
+    });
+    allComments.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    if(!allComments.length){history.innerHTML='';return;}
+    history.innerHTML=allComments.map(c=>{
+      const author=c.createdBy?.name||c.createdBy?.email||'Unknown';
+      const when=new Date(c.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+      const isVendor=author.toLowerCase().includes(VENDOR_NAME.toLowerCase())||(c.text||'').includes('['+VENDOR_NAME+']');
+      return `<div class="note-bubble"${isVendor?'':' style="background:#F0F0F0"'}><div class="note-bubble-text">${esc(c.text||'')}</div><div class="note-bubble-meta"${isVendor?'':' style="color:var(--ink3)"'}>${esc(author)} · ${when}</div></div>`;
+    }).join('');
+  }catch{/* silent fail, keep empty */}
+}
 function btab(e,pfx,id,tab){const body=document.getElementById('jc-'+pfx+'-'+id).querySelector('.jbody');body.querySelectorAll('.btab').forEach(b=>b.classList.remove('active'));body.querySelectorAll('.bpanel').forEach(p=>p.classList.remove('active'));e.target.classList.add('active');document.getElementById('b'+tab+'-'+pfx+'-'+id).classList.add('active');}
 async function loadAtt(id,pfx){
   const key=pfx+'-'+id;if(loadedAtt[key])return;loadedAtt[key]=true;
@@ -265,6 +449,51 @@ async function uploadPhotos(id,pfx){
 }
 async function ssUpdateRow(rowId,colName,val){const colId=COL_MAP[colName];if(!colId)return false;return ssPut('/sheets/'+SHEET_ID+'/rows',[{id:rowId,cells:[{columnId:colId,value:val}]}]);}
 async function ssComment(rowId,text){return ssPost('/sheets/'+SHEET_ID+'/rows/'+rowId+'/discussions',{comment:{text:text}});}
+async function ssNotifyPM(rowId,pmEmail,message){
+  // Send row to PM via Smartsheet's send row API — triggers email notification
+  try{
+    await ssPost('/sheets/'+SHEET_ID+'/rows/'+rowId+'/emails',[{
+      sendTo:[{email:pmEmail}],
+      subject:'Vendor Note — '+message.substring(0,60),
+      message:message,
+      includeAttachments:false,
+      includeCellLinks:false,
+      columnIds:Object.values(COL_MAP).slice(0,6)
+    }]);
+  }catch(e){console.log('PM notify failed:',e);}
+}
+// PM Smartsheet emails for @mentions
+const PM_SMARTSHEET_EMAILS={
+  'Zak Kranich':'zkranich@farmerdevelopment.com',
+  'Jacob Dafoe':'jdafoe@farmerdevelopment.com',
+  'Connor Thomas':'cthomas@farmerdevelopment.com'
+};
+
+async function doNote(id,pfx){
+  const txt=document.getElementById('note-inp-'+pfx+'-'+id).value.trim();
+  const ok=document.getElementById('note-ok-'+pfx+'-'+id),er=document.getElementById('note-er-'+pfx+'-'+id);
+  ok.classList.remove('on');er.classList.remove('on');
+  if(!txt){er.textContent='Please enter a note.';er.classList.add('on');return;}
+  const btn=ok.previousElementSibling;btn.disabled=true;btn.textContent='Posting…';
+  try{
+    // Build @mention for the job's PM so they get notified in Smartsheet
+    const j=JOBS.find(x=>x.id===id);
+    const pmEmail=j&&PM_SMARTSHEET_EMAILS[j.pm]?PM_SMARTSHEET_EMAILS[j.pm]:null;
+    const mention=pmEmail?`@${pmEmail} `:'';
+    const comment=`${mention}[${VENDOR_NAME}] ${txt}`;
+    const res=await ssComment(id,comment);
+    if(res){
+      // Also send email notification to PM
+      if(pmEmail) await ssNotifyPM(id, pmEmail, `[${VENDOR_NAME}] left a note on job #${j.proj} — ${j.name}: "${txt}"`);
+      ok.classList.add('on');
+      document.getElementById('note-inp-'+pfx+'-'+id).value='';
+      loadedDisc[pfx+'-'+id]=false;
+      DISCUSSION_COUNTS[id]=(DISCUSSION_COUNTS[id]||0)+1;
+      loadDiscussion(id,pfx);
+    }else er.classList.add('on');
+  }catch{er.classList.add('on');}
+  btn.disabled=false;btn.textContent='Post Note';
+}
 async function doVendorStep(id,pfx){
   const v=document.getElementById('vns-'+pfx+'-'+id).value;
   const ok=document.getElementById('vns-ok-'+pfx+'-'+id),er=document.getElementById('vns-er-'+pfx+'-'+id);
@@ -286,7 +515,19 @@ async function doBid(id,pfx){
     await ssComment(id,`[${VENDOR_NAME} — Estimate] Amount: $${val}${notes?' | Notes: '+notes:''}`);
     const bf=document.getElementById('bid-f-'+pfx+'-'+id).files[0];
     if(bf){const fd=new FormData();fd.append('file',bf,bf.name);await fetch('https://ss-proxy.zkranich.workers.dev/sheets/'+SHEET_ID+'/rows/'+id+'/attachments',{method:'POST',headers:{'Authorization':'Bearer '+SS_TOKEN},body:fd});}
-    ok.classList.add('on');document.getElementById('bid-a-'+pfx+'-'+id).value='';document.getElementById('bid-n-'+pfx+'-'+id).value='';
+    // Send email notification to PM
+    const j=JOBS.find(x=>x.id===id);
+    if(j)await sendPMEmail(j.pm,j.name,j.address,j.proj,val,notes);
+    // Auto-update Vendor Next Step to Estimate Submitted
+    await ssUpdateRow(id,'Vendor Next Step','02. Estimate Submitted');
+    // Keep bid amount visible — store in jState and update display
+    jState[id].quotedAmt=val;
+    ok.textContent=`✓ Estimate submitted — $${val}`;ok.classList.add('on');
+    // Clear notes but keep amount visible
+    document.getElementById('bid-n-'+pfx+'-'+id).value='';
+    // Show submitted amount in input as readonly
+    const amtInput=document.getElementById('bid-a-'+pfx+'-'+id);
+    amtInput.value=val;amtInput.readOnly=true;amtInput.style.background='var(--paper)';amtInput.style.color='var(--c-dowork)';amtInput.style.fontWeight='600';
   }catch{er.classList.add('on');}btn.disabled=false;btn.textContent='Submit Estimate';
 }
 async function doSched(id,pfx){
@@ -299,9 +540,31 @@ async function doSched(id,pfx){
     const dColId=COL_MAP['Start Work Date'],sColId=COL_MAP['Next Step'];
     const cells=[{columnId:dColId,value:dt}];if(sColId)cells.push({columnId:sColId,value:'05.Do Work'});
     await ssPut('/sheets/'+SHEET_ID+'/rows',[{id:id,cells:cells}]);
+    // Also update Vendor Next Step to Scheduled
+    await ssUpdateRow(id,'Vendor Next Step','07. Scheduled');
     await ssComment(id,`[${VENDOR_NAME}] Scheduled work for ${fmtD(dt)}`);
-    ok.classList.add('on');const j=JOBS.find(x=>x.id===id);if(j){j.start=dt;j.step='05.Do Work';}
-  }catch{er.classList.add('on');}btn.disabled=false;btn.textContent='Save Schedule Date';
+    // Update local job data
+    const j=JOBS.find(x=>x.id===id);
+    if(j){j.start=dt;j.step='05.Do Work';j.vStep='07. Scheduled';}
+    // Update badge on card header in real time
+    const card=document.getElementById('jc-'+pfx+'-'+id);
+    if(card){
+      const badge=card.querySelector('.jbadges .badge');
+      if(badge){badge.className='badge '+stepCls('05.Do Work');badge.textContent=stepLblBadge('05.Do Work','');}
+    }
+    // Update schedule display in the panel
+    const schedPanel=document.getElementById('bsched-'+pfx+'-'+id);
+    if(schedPanel){
+      const display=schedPanel.querySelector('.sched-none');
+      if(display){display.outerHTML=`<div class="sched-display"><div><div class="sched-date">${fmtD(dt)}</div><div class="sched-label">Currently scheduled</div></div></div>`;}
+      const existing=schedPanel.querySelector('.sched-display .sched-date');
+      if(existing)existing.textContent=fmtD(dt);
+    }
+    ok.textContent=`✓ Scheduled for ${fmtD(dt)}`;ok.classList.add('on');
+    // Refresh stats
+    buildAllStats();
+  }catch{er.classList.add('on');}
+  btn.disabled=false;btn.textContent='Save Schedule Date';
 }
 async function doInvoice(id,pfx){
   const amt=document.getElementById('inv-a-'+pfx+'-'+id).value,num=document.getElementById('inv-n-'+pfx+'-'+id).value;
@@ -318,7 +581,15 @@ async function doInvoice(id,pfx){
     if(inv){const fd=new FormData();fd.append('file',inv,inv.name);await fetch('https://ss-proxy.zkranich.workers.dev/sheets/'+SHEET_ID+'/rows/'+id+'/attachments',{method:'POST',headers:{'Authorization':'Bearer '+SS_TOKEN},body:fd});}
     const key=pfx+'-'+id,cpf=pendingCompPhotos[key]||[];
     for(const f of cpf){const fd=new FormData();fd.append('file',f,f.name);await fetch('https://ss-proxy.zkranich.workers.dev/sheets/'+SHEET_ID+'/rows/'+id+'/attachments',{method:'POST',headers:{'Authorization':'Bearer '+SS_TOKEN},body:fd});}
-    pendingCompPhotos[key]=[];ok.classList.add('on');
+    pendingCompPhotos[key]=[];
+    // Keep amount and invoice # visible as readonly after submit
+    const amtEl=document.getElementById('inv-a-'+pfx+'-'+id);
+    amtEl.value=val;amtEl.readOnly=true;amtEl.style.background='var(--paper)';amtEl.style.color='var(--c-dowork)';amtEl.style.fontWeight='600';
+    const numEl=document.getElementById('inv-n-'+pfx+'-'+id);
+    if(num){numEl.value=num;numEl.readOnly=true;numEl.style.background='var(--paper)';numEl.style.color='var(--c-dowork)';numEl.style.fontWeight='600';}
+    ok.textContent=`✓ Invoice submitted — $${val}${num?' | #'+num:''}`;ok.classList.add('on');
+    // Auto-update Vendor Next Step to Need Invoice
+    await ssUpdateRow(id,'Vendor Next Step','08. Need Invoice');
   }catch{er.classList.add('on');}btn.disabled=false;btn.textContent='Submit Invoice & Photos';
 }
 function initMap(){
@@ -392,7 +663,9 @@ function buildEstimates(){
 }
 function openModal(url){document.getElementById('modal-img').src=url;document.getElementById('img-modal').classList.add('on');}
 function closeModal(){document.getElementById('img-modal').classList.remove('on');}
-async function init(){await loadJobs();if(!JOBS.length)return;buildAllStats();renderJobList();renderCal();buildEstimates();}
+async function init(){await loadJobs();if(!JOBS.length)return;await loadAllDiscussionCounts();buildAllStats();renderJobList();renderCal();buildEstimates();primeSeenState();}
+
+
 init();
 </script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
