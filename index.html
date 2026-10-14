@@ -151,18 +151,22 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 <div class="tabs-bar">
   <button class="tab-btn active" onclick="showView('jobs',this)">All Jobs</button>
   <button class="tab-btn" onclick="showView('doors',this)">Unit Doors</button>
-  <button class="tab-btn" onclick="showView('geo',this)">Geographic</button>
+  <button class="tab-btn" onclick="showView('geo',this)">Map</button>
   <button class="tab-btn" onclick="showView('sched',this)">Schedule</button>
   <button class="tab-btn" onclick="showView('est',this)">Need Estimates</button>
 </div>
 <div class="view active" id="view-jobs"><div class="shell"><div class="stats-row" id="stats-all"></div><div class="job-list" id="job-list-all"></div><div class="empty-msg" id="jobs-empty" style="display:none">No jobs in this category.</div></div></div>
 <div class="view" id="view-doors"><div class="shell">
-  <div class="sched-sec-hdr" style="margin-bottom:20px"><h3>Unit Doors — Parkinson Enterprises</h3><div class="sched-div"></div><span id="doors-count" style="font-family:var(--mono);font-size:12px;color:var(--ink3);flex-shrink:0"></span></div>
-  <div style="font-size:12px;color:var(--ink3);margin-bottom:16px;padding:10px 14px;background:#EDE9FE;border-radius:var(--r);color:#5B21B6">Parkinson Enterprises unit door jobs — for reference and coordination</div>
+  <div class="sched-sec-hdr" style="margin-bottom:12px"><h3>Unit Doors — Parkinson Enterprises</h3><div class="sched-div"></div><span id="doors-count" style="font-family:var(--mono);font-size:12px;color:var(--ink3);flex-shrink:0"></span></div>
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <div style="position:relative;flex:1;min-width:160px"><svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink3)" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input class="ii" id="doors-search-job" type="text" placeholder="Search job # or name…" oninput="filterDoors()" style="padding-left:32px"></div>
+    <div style="position:relative;flex:1;min-width:140px"><svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink3)" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><input class="ii" id="doors-search-zip" type="text" placeholder="Search zip code…" oninput="filterDoors()" style="padding-left:32px"></div>
+    <button class="btn" onclick="clearDoorsSearch()" style="padding:9px 14px;white-space:nowrap">Clear</button>
+  </div>
   <div class="job-list" id="job-list-doors"></div>
   <div class="empty-msg" id="doors-empty" style="display:none">No unit door jobs found.</div>
 </div></div>
-<div class="view" id="view-geo" style="display:none"><div class="geo-shell"><div id="gmap"></div><div class="geo-sidebar"><div class="geo-sidebar-hdr">Job Locations <span id="geo-count" style="font-family:var(--mono);font-size:11px;color:var(--ink3);font-weight:400;margin-left:6px"></span></div><div id="geo-job-list"></div></div></div></div>
+<div class="view" id="view-geo" style="display:none"><div class="geo-shell"><div id="gmap"></div><div class="geo-sidebar"><div class="geo-sidebar-hdr" style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;justify-content:space-between"><span>Job Locations</span><span id="geo-count" style="font-family:var(--mono);font-size:11px;color:var(--ink3);font-weight:400"></span></div><div style="display:flex;gap:6px"><button id="geo-toggle-jobs" onclick="toggleGeoLayer('jobs')" style="flex:1;padding:5px 8px;font-size:11px;font-weight:600;border-radius:20px;border:1px solid var(--line);cursor:pointer;background:var(--ink);color:white;transition:all .15s">All Jobs</button><button id="geo-toggle-doors" onclick="toggleGeoLayer('doors')" style="flex:1;padding:5px 8px;font-size:11px;font-weight:600;border-radius:20px;border:1px solid #16a34a;cursor:pointer;background:white;color:#16a34a;transition:all .15s">Unit Doors</button></div></div><div id="geo-job-list"></div></div></div></div>
 <div class="view" id="view-sched"><div class="shell">
   <div class="cal-nav"><button class="cal-nbtn" onclick="changeMonth(-1)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button><div class="cal-month" id="cal-month-lbl"></div><button class="cal-nbtn" onclick="changeMonth(1)"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
   <div class="cal-grid" id="cal-grid"></div>
@@ -348,9 +352,27 @@ function springHintHTML(j){
 function buildDoorsView(){
   const list=document.getElementById('job-list-doors'),empty=document.getElementById('doors-empty'),count=document.getElementById('doors-count');
   if(!DOOR_JOBS.length){list.innerHTML='';empty.style.display='block';count.textContent='';return;}
+  renderDoors(DOOR_JOBS);
+}
+function filterDoors(){
+  const jobQ=(document.getElementById('doors-search-job')?.value||'').toLowerCase().trim();
+  const zipQ=(document.getElementById('doors-search-zip')?.value||'').trim();
+  let filtered=[...DOOR_JOBS];
+  if(jobQ) filtered=filtered.filter(j=>j.proj.toLowerCase().includes(jobQ)||j.name.toLowerCase().includes(jobQ)||j.store.toLowerCase().includes(jobQ));
+  if(zipQ) filtered=filtered.filter(j=>{const zip=(j.address||'').match(/\b\d{5}\b/g)||[];return zip.some(z=>z.startsWith(zipQ));});
+  renderDoors(filtered);
+}
+function clearDoorsSearch(){
+  const j=document.getElementById('doors-search-job'),z=document.getElementById('doors-search-zip');
+  if(j)j.value='';if(z)z.value='';
+  renderDoors(DOOR_JOBS);
+}
+function renderDoors(jobs){
+  const list=document.getElementById('job-list-doors'),empty=document.getElementById('doors-empty'),count=document.getElementById('doors-count');
+  if(!jobs.length){list.innerHTML='';empty.style.display='block';count.textContent='0 jobs';return;}
   empty.style.display='none';
-  count.textContent=DOOR_JOBS.length+' job'+(DOOR_JOBS.length!==1?'s':'');
-  const sorted=[...DOOR_JOBS].sort((a,b)=>(a.store||'').localeCompare(b.store||''));
+  count.textContent=jobs.length+' job'+(jobs.length!==1?'s':'');
+  const sorted=[...jobs].sort((a,b)=>(a.store||'').localeCompare(b.store||''));
   list.innerHTML=sorted.map(j=>buildCard(j,'doors')).join('');
 }
 function buildAllStats(){
@@ -686,23 +708,11 @@ async function doInvoice(id,pfx){
     await ssUpdateRow(id,'Vendor Next Step','08. Need Invoice');
   }catch{er.classList.add('on');}btn.disabled=false;btn.textContent='Submit Invoice & Photos';
 }
-let geoBuilt=false,gmap=null,gMarkers={};
+let geoBuilt=false,gmap=null,gJobMarkers={},gDoorMarkers={},gActiveLayer='jobs';
+
 function buildGeoView(){
   if(geoBuilt)return;geoBuilt=true;
-  if(!VISIBLE_JOBS.length)return;
-  const addrGroups={};
-  VISIBLE_JOBS.forEach(j=>{const k=j.address||'';(addrGroups[k]=addrGroups[k]||[]).push(j);});
-  const addrs=Object.entries(addrGroups).sort((a,b)=>a[1][0].store.localeCompare(b[1][0].store));
-  document.getElementById('geo-count').textContent=addrs.length+' location'+(addrs.length!==1?'s':'');
-  const list=document.getElementById('geo-job-list');
-  list.innerHTML=addrs.map(([addr,jobs],i)=>{
-    const store=jobs[0].store||'',customer=getCustomer(store)||'';
-    return `<div class="geo-item" id="gi-${i}" onclick="focusLocation(${i})">
-      <div class="geo-item-store">${esc(store)}${customer?' · '+customer:''}</div>
-      ${jobs.map(j=>`<div class="geo-item-name">${esc(j.name)}</div><div class="geo-item-badge"><span class="badge ${stepCls(j.step)}" style="font-size:10px;padding:2px 7px">${stepLblBadge(j.step,j.vStep)}</span></div>`).join('')}
-      <div class="geo-item-addr">${esc(addr)}</div>
-    </div>`;
-  }).join('');
+  if(!VISIBLE_JOBS.length&&!DOOR_JOBS.length)return;
   const waitForMaps=()=>{
     if(typeof google==='undefined'||!google.maps){setTimeout(waitForMaps,200);return;}
     gmap=new google.maps.Map(document.getElementById('gmap'),{
@@ -710,38 +720,112 @@ function buildGeoView(){
       mapTypeControl:false,streetViewControl:false,fullscreenControl:true,
       styles:[{featureType:'poi',stylers:[{visibility:'off'}]},{featureType:'transit',stylers:[{visibility:'off'}]}]
     });
-    const bounds=new google.maps.LatLngBounds();
-    addrs.forEach(([addr,jobs],i)=>{
-      const geocoder=new google.maps.Geocoder();
-      geocoder.geocode({address:addr},function(results,status){
-        if(status!=='OK')return;
-        const pos=results[0].geometry.location;
-        bounds.extend(pos);
-        const store=jobs[0].store||'';
-        const marker=new google.maps.Marker({
-          position:pos,map:gmap,
-          title:store,
-          label:{text:store,color:'black',fontSize:'9px',fontWeight:'600',fontFamily:'monospace'}
-        });
-        gMarkers[i]=marker;
-        const infoContent=`<div style="font-family:sans-serif;min-width:200px;padding:4px"><div style="font-family:monospace;font-size:11px;color:#888;margin-bottom:6px">${addr}</div>${jobs.map(j=>`<div style="padding:5px 0;border-bottom:1px solid #eee"><div style="font-size:12px;font-weight:500">${j.name}</div><span style="font-size:10px;padding:2px 6px;border-radius:10px;background:#FFF3E0;color:#E65100;font-weight:500;display:inline-block;margin-top:3px">${stepLblBadge(j.step,j.vStep)}</span></div>`).join('')}<a href="https://maps.google.com/?q=${encodeURIComponent(addr)}" target="_blank" style="display:block;margin-top:8px;font-size:12px;color:#1565C0;text-decoration:none">Get Directions →</a></div>`;
-        const infoWindow=new google.maps.InfoWindow({content:infoContent,maxWidth:280});
-        marker.addListener('click',()=>{
-          document.querySelectorAll('.geo-item').forEach(el=>el.classList.remove('active-geo'));
-          document.getElementById('gi-'+i)?.classList.add('active-geo');
-          document.getElementById('gi-'+i)?.scrollIntoView({behavior:'smooth',block:'nearest'});
-          infoWindow.open(gmap,marker);
-        });
-        if(Object.keys(gMarkers).length===addrs.length)gmap.fitBounds(bounds);
-      });
-    });
+    placeJobMarkers();
+    placeDoorMarkers();
+    renderGeoSidebar('jobs');
   };
   waitForMaps();
 }
+
+function geocodeAndPlace(addr,jobs,markerStore,idx,bounds,totalExpected,color,isDoor){
+  const geocoder=new google.maps.Geocoder();
+  geocoder.geocode({address:addr},function(results,status){
+    if(status!=='OK')return;
+    const pos=results[0].geometry.location;
+    bounds.extend(pos);
+    const store=jobs[0].store||'';
+    const label=isDoor?{text:'●',color:'white',fontSize:'8px'}:{text:store,color:'black',fontSize:'9px',fontWeight:'600',fontFamily:'monospace'};
+    const icon=isDoor?{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#16a34a',fillOpacity:1,strokeColor:'white',strokeWeight:2}:undefined;
+    const marker=new google.maps.Marker({position:pos,map:isDoor?null:gmap,title:store,label,icon});
+    markerStore[idx]=marker;
+    const infoContent=`<div style="font-family:sans-serif;min-width:200px;padding:4px">
+      ${isDoor?'<div style="font-size:10px;font-weight:700;color:#16a34a;margin-bottom:4px">UNIT DOORS — PARKINSON</div>':''}
+      <div style="font-family:monospace;font-size:11px;color:#888;margin-bottom:6px">${addr}</div>
+      ${jobs.map(j=>`<div style="padding:5px 0;border-bottom:1px solid #eee">
+        <div style="font-size:12px;font-weight:500">${j.name}</div>
+        ${j.occupancy?`<div style="font-size:11px;color:#666;margin-top:2px">${j.occupancy}</div>`:''}
+        <span style="font-size:10px;padding:2px 6px;border-radius:10px;background:${isDoor?'#DCFCE7':'#FFF3E0'};color:${isDoor?'#166534':'#E65100'};font-weight:500;display:inline-block;margin-top:3px">${stepLblBadge(j.step,j.vStep)}</span>
+      </div>`).join('')}
+      <a href="https://maps.google.com/?q=${encodeURIComponent(addr)}" target="_blank" style="display:block;margin-top:8px;font-size:12px;color:#1565C0;text-decoration:none">Get Directions →</a>
+    </div>`;
+    const infoWindow=new google.maps.InfoWindow({content:infoContent,maxWidth:280});
+    marker.addListener('click',()=>{
+      const prefix=isDoor?'gd':'gi';
+      document.querySelectorAll('.geo-item').forEach(el=>el.classList.remove('active-geo'));
+      document.getElementById(prefix+'-'+idx)?.classList.add('active-geo');
+      document.getElementById(prefix+'-'+idx)?.scrollIntoView({behavior:'smooth',block:'nearest'});
+      infoWindow.open(gmap,marker);
+    });
+    if(Object.keys(markerStore).length>=totalExpected&&!isDoor)gmap.fitBounds(bounds);
+  });
+}
+
+function placeJobMarkers(){
+  const addrGroups={};
+  VISIBLE_JOBS.forEach(j=>{const k=j.address||'';(addrGroups[k]=addrGroups[k]||[]).push(j);});
+  const addrs=Object.entries(addrGroups).sort((a,b)=>a[1][0].store.localeCompare(b[1][0].store));
+  const bounds=new google.maps.LatLngBounds();
+  addrs.forEach(([addr,jobs],i)=>geocodeAndPlace(addr,jobs,gJobMarkers,i,bounds,addrs.length,'#1E3A5F',false));
+  window._gJobAddrs=addrs;
+}
+
+function placeDoorMarkers(){
+  if(!DOOR_JOBS.length)return;
+  const addrGroups={};
+  DOOR_JOBS.forEach(j=>{const k=j.address||'';(addrGroups[k]=addrGroups[k]||[]).push(j);});
+  const addrs=Object.entries(addrGroups).sort((a,b)=>a[1][0].store.localeCompare(b[1][0].store));
+  const bounds=new google.maps.LatLngBounds();
+  addrs.forEach(([addr,jobs],i)=>geocodeAndPlace(addr,jobs,gDoorMarkers,i,bounds,addrs.length,'#16a34a',true));
+  window._gDoorAddrs=addrs;
+}
+
+function renderGeoSidebar(layer){
+  gActiveLayer=layer;
+  const addrs=layer==='doors'?(window._gDoorAddrs||[]):(window._gJobAddrs||[]);
+  const prefix=layer==='doors'?'gd':'gi';
+  const count=addrs.length;
+  document.getElementById('geo-count').textContent=count+' location'+(count!==1?'s':'');
+  const list=document.getElementById('geo-job-list');
+  list.innerHTML=addrs.map(([addr,jobs],i)=>{
+    const store=jobs[0].store||'',customer=getCustomer(store)||'';
+    return `<div class="geo-item" id="${prefix}-${i}" onclick="focusLocation(${i})">
+      <div class="geo-item-store">${esc(store)}${customer?' · '+customer:''}</div>
+      ${jobs.map(j=>`<div class="geo-item-name">${esc(j.name)}</div>`).join('')}
+      <div class="geo-item-addr">${esc(addr)}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleGeoLayer(layer){
+  gActiveLayer=layer;
+  // Show/hide markers
+  Object.values(gJobMarkers).forEach(m=>m.setMap(layer==='jobs'?gmap:null));
+  Object.values(gDoorMarkers).forEach(m=>m.setMap(layer==='doors'?gmap:null));
+  // Update button styles
+  const jobBtn=document.getElementById('geo-toggle-jobs');
+  const doorBtn=document.getElementById('geo-toggle-doors');
+  jobBtn.style.background=layer==='jobs'?'var(--ink)':'white';
+  jobBtn.style.color=layer==='jobs'?'white':'var(--ink)';
+  jobBtn.style.borderColor=layer==='jobs'?'var(--ink)':'var(--line)';
+  doorBtn.style.background=layer==='doors'?'#16a34a':'white';
+  doorBtn.style.color=layer==='doors'?'white':'#16a34a';
+  doorBtn.style.borderColor='#16a34a';
+  renderGeoSidebar(layer);
+  // Fit bounds to visible markers
+  if(gmap){
+    const bounds=new google.maps.LatLngBounds();
+    const markers=layer==='doors'?Object.values(gDoorMarkers):Object.values(gJobMarkers);
+    markers.forEach(m=>{if(m.getPosition())bounds.extend(m.getPosition());});
+    if(!bounds.isEmpty())gmap.fitBounds(bounds);
+  }
+}
+
 function focusLocation(i){
   document.querySelectorAll('.geo-item').forEach(el=>el.classList.remove('active-geo'));
-  document.getElementById('gi-'+i)?.classList.add('active-geo');
-  if(gMarkers[i]){google.maps.event.trigger(gMarkers[i],'click');gmap.setZoom(15);gmap.panTo(gMarkers[i].getPosition());}
+  const prefix=gActiveLayer==='doors'?'gd':'gi';
+  document.getElementById(prefix+'-'+i)?.classList.add('active-geo');
+  const markers=gActiveLayer==='doors'?gDoorMarkers:gJobMarkers;
+  if(markers[i]){google.maps.event.trigger(markers[i],'click');gmap.setZoom(15);gmap.panTo(markers[i].getPosition());}
 }
 function changeMonth(d){calDate=new Date(calDate.getFullYear(),calDate.getMonth()+d,1);renderCal();}
 function renderCal(){
